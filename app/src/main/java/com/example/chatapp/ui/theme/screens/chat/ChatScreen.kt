@@ -3,6 +3,7 @@ package com.example.chatapp.ui.theme.screens.chat
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
@@ -44,6 +45,7 @@ import com.example.chatapp.data.ChatViewModel
 import com.example.chatapp.models.Message
 import com.example.chatapp.ui.theme.MarPurple
 import com.example.chatapp.ui.theme.Purple
+import com.example.chatapp.ui.theme.screens.home.ChannelItem
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import java.io.File
@@ -53,7 +55,7 @@ import java.util.*
 
 
 @Composable
-fun ChatScreen(navController: NavController, channelId: String) {
+fun ChatScreen(navController: NavController, channelId: String, channelName: String) {
     val context = LocalContext.current
     val viewModel: ChatViewModel = hiltViewModel()
 
@@ -126,7 +128,7 @@ fun ChatScreen(navController: NavController, channelId: String) {
                 onOpenCamera = {
                     chooseDialog.value = false
                     if (context.checkSelfPermission(Manifest.permission.CAMERA) ==
-                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                        PackageManager.PERMISSION_GRANTED
                     ) {
                         cameraLauncher.launch(createImageUri(context))
                     } else {
@@ -138,6 +140,7 @@ fun ChatScreen(navController: NavController, channelId: String) {
                     chooseDialog.value = false
                     galleryLauncher.launch("image/*")
                 },
+                channelName = String(),
                 onAttachDocument = {
                     chooseDialog.value = false
                     documentLauncher.launch(arrayOf("application/pdf", "application/msword"))
@@ -149,7 +152,7 @@ fun ChatScreen(navController: NavController, channelId: String) {
                     onOpenCamera = {
                         chooseDialog.value = false
                         if (context.checkSelfPermission(Manifest.permission.CAMERA) ==
-                            android.content.pm.PackageManager.PERMISSION_GRANTED
+                            PackageManager.PERMISSION_GRANTED
                         ) {
                             cameraLauncher.launch(createImageUri(context))
                         } else {
@@ -255,6 +258,7 @@ fun ImagePreviewDialog(uri: Uri, onDismiss: () -> Unit, onSend: () -> Unit) {
 
 @Composable
 fun ChatMessages(
+    channelName: String,
     messages: List<Message>,
     onSendMessage: (String) -> Unit,
     onOpenCamera: () -> Unit,
@@ -270,6 +274,15 @@ fun ChatMessages(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 72.dp)
         ) {
+            item {
+                ChannelItem(
+                    channelName = channelName,
+                    onClick = TODO(),
+                    modifier = TODO()
+                )
+            }
+
+
             items(messages) { message ->
                 ChatBubble(message = message)
             }
@@ -539,17 +552,3 @@ fun ChatBubble(message: Message) {
 }
 
 
-
-
-@Preview(showBackground = true)
-@Composable
-fun ChatScreenPreview() {
-    ChatMessages(
-        messages = emptyList(),
-        onSendMessage = {},
-        onOpenCamera = {},
-        onOpenGallery = {},
-        onAttachDocument = {},
-        onImageClicked = {}
-    )
-}

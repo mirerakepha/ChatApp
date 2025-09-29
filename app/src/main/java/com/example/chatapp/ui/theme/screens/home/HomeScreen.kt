@@ -66,7 +66,7 @@ fun HomeScreen(navController: NavController) {
                 items(channels.value) { channel ->
                     ChannelItem(
                         channelName = channel.name,
-                        onClick = { navController.navigate("chat/${channel.id}") }
+                        onClick = { navController.navigate("chat/${channel.id}&${channel.name}") }
                     )
                     HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
                 }

@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.volley)
 
     debugImplementation(libs.androidx.ui.tooling)
 
@@ -96,4 +97,10 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Firebase Messaging for notifications
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
+
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+
 }

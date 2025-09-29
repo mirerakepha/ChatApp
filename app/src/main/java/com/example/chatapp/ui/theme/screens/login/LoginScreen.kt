@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SearchBarDefaults.colors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -70,7 +69,8 @@ fun LoginScreen(navController: NavController) {
             contentDescription = "logo",
             modifier = Modifier
                 .size(200.dp)
-                .background(MaterialTheme.colorScheme.background)
+                .background(MaterialTheme.colorScheme.background),
+
         )
 
 
@@ -131,6 +131,8 @@ fun LoginScreen(navController: NavController) {
                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         )
+        Spacer(modifier = Modifier.height(20.dp))
+
         Button(onClick = {},
             colors = ButtonDefaults.buttonColors(
                 containerColor = MarPurple,
@@ -169,9 +171,9 @@ fun LoginScreen(navController: NavController) {
 
         OutlinedButton(
             onClick = {},
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(15.dp),
             modifier = Modifier
-                .fillMaxWidth()
+                .width(50.dp)
                 .padding(horizontal = 40.dp),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = MarPurple,
@@ -185,7 +187,7 @@ fun LoginScreen(navController: NavController) {
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Sign in with Google", color = MarPurple)
+            Text("Sign in with Google", color = Color.White)
         }
 
 

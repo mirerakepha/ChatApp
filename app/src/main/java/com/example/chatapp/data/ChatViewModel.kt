@@ -1,25 +1,39 @@
 package com.example.chatapp.data
 
+import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.volley.toolbox.StringRequest
 import com.example.chatapp.models.Message
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
+import com.example.chatapp.R
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.ktx.storage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.lang.reflect.Method
+import com.android.volley.Response
+import com.android.volley.toolbox.Volley
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.auth.GoogleAuthCredential
+import dagger.hilt.android.qualifiers.ApplicationContext
+
+
 import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
-class ChatViewModel @Inject constructor() : ViewModel() {
+class ChatViewModel @Inject constructor(@ApplicationContext val context: Context ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val message = _messages.asStateFlow()
@@ -41,6 +55,13 @@ class ChatViewModel @Inject constructor() : ViewModel() {
             documentUrl = null
         )
         db.getReference("messages").child(channelId).push().setValue(message)
+            .addOnCompleteListener {
+                if (it.isSuccessful){
+                    postNotificationToUsers(channelId, message.senderName, messageText)
+                }
+
+
+        }
     }
 
 
@@ -117,6 +138,66 @@ class ChatViewModel @Inject constructor() : ViewModel() {
                 }
             }
         )
+        subscribeForNotification(channelId)
+    }
+
+    private fun subscribeForNotification(channelId: String){
+        FirebaseMessaging.getInstance().subscribeToTopic( "group_$channelId" ).addOnCompleteListener {
+            if (it.isSuccessful){
+                Log.d("ChatViewModel", "subscribe to topic: group_$channelId")
+            }else{
+                Log.d("ChatViewModel", "Failed to subscribe to topic: group_$channelId")
+
+            }
+
+        }
+
+    }
+
+
+    //this is there since no billing plan for the firebase cloud service
+
+    private fun postNotificationToUsers(channelId: String, senderName: String, messageContent: String) {
+        val fcmUrl = "https://fcm.googleapis.com/v1/projects/chatapp-9109d/messages:send"//project-id(chatapp-9109d)
+        val jsonBody = JSONObject().apply {
+            put("message", JSONObject().apply {
+                put("topic", "group_$channelId")
+                put("notification", JSONObject().apply {
+                    put("title", "new message in $channelId")
+                    put("body", "$senderName: $messageContent")
+                })
+
+            })
+        }
+        val requestBody = jsonBody.toString()
+
+        val request = object : StringRequest(Method.POST, fcmUrl,
+            Response.Listener<String> {
+                Log.d("ChatViewModel", "Notification sent successfully")
+            },
+            Response.ErrorListener {
+                Log.e("ChatViewModel", "Failed to send notification")
+            }) {
+            override fun getBody(): ByteArray{
+                return requestBody.toByteArray()
+            }
+            override fun getHeaders(): MutableMap<String, String>{
+                val headers = HashMap<String, String>()
+                headers["Authorization"] = "Bearer YOUR_ACCESS_TOKEN"
+                headers["Content-Type"] = "application/json"
+                return headers
+            }
+        }
+        val queue = Volley.newRequestQueue(context)
+        queue.add(request)
+    }
+
+    private fun getAccessToken(): String {
+        val inputStream = context.resources.openRawResource(R.raw.chatapp_key)
+        val googleCreds = GoogleCredentials.fromStream(inputStream)
+            .createScoped("https://www.googleapis.com/auth/firebase.messaging")
+        return googleCreds.refreshAccessToken().tokenValue
+
     }
 
 
