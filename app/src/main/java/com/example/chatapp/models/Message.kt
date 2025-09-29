@@ -7,5 +7,6 @@ data class Message(
     val createdAt: Long = System.currentTimeMillis(),
     val senderName: String = "",
     val senderImage: String? = null,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val documentUrl: String? = null
 )
