@@ -73,11 +73,8 @@ dependencies {
 
     // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
-
     // Firebase Auth
     implementation("com.google.firebase:firebase-auth-ktx")
-
-    // If you need other Firebase modules, add them too:
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")

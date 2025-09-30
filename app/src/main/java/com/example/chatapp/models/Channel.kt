@@ -5,4 +5,7 @@ data class Channel(
     val name: String = "",
     val email: String = "",
     val createdAt: Long = System.currentTimeMillis()
-)
+){
+    // Add empty constructor for Firebase
+    constructor() : this("", "")
+}
