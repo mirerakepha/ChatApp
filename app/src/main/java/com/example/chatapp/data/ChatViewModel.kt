@@ -13,7 +13,6 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.example.chatapp.R
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.ktx.storage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +24,11 @@ import java.lang.reflect.Method
 import com.android.volley.Response
 import com.android.volley.toolbox.Volley
 import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.Firebase
 import com.google.firebase.auth.GoogleAuthCredential
+import com.google.firebase.auth.auth
+import com.google.firebase.database.database
+import com.google.firebase.storage.storage
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 

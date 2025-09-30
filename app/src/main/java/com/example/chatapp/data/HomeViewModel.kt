@@ -5,9 +5,11 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.example.chatapp.models.Channel
+import com.google.firebase.Firebase
+import com.google.firebase.database.database
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
+
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject

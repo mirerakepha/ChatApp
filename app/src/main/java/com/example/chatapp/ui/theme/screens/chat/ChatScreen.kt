@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -29,11 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -45,102 +47,87 @@ import com.example.chatapp.data.ChatViewModel
 import com.example.chatapp.models.Message
 import com.example.chatapp.ui.theme.MarPurple
 import com.example.chatapp.ui.theme.Purple
-import com.example.chatapp.ui.theme.screens.home.ChannelItem
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(navController: NavController, channelId: String, channelName: String) {
     val context = LocalContext.current
     val viewModel: ChatViewModel = hiltViewModel()
 
-    // Collect messages
-    LaunchedEffect(Unit) {
-        viewModel.listenForMessages(channelId)
-    }
+    LaunchedEffect(Unit) { viewModel.listenForMessages(channelId) }
     val messages = viewModel.message.collectAsState()
 
-    // State for dialog and image preview
     val chooseDialog = remember { mutableStateOf(false) }
     val previewImageUri = remember { mutableStateOf<Uri?>(null) }
-
-    // Camera URI
     val cameraImageUri = remember { mutableStateOf<Uri?>(null) }
 
     fun createImageUri(context: Context): Uri {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val storageDir = ContextCompat.getExternalFilesDirs(
-            context,
-            Environment.DIRECTORY_PICTURES
-        ).first()
+        val storageDir = ContextCompat.getExternalFilesDirs(context, Environment.DIRECTORY_PICTURES).first()
         val file = File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         cameraImageUri.value = uri
         return uri
     }
 
-    // Launcher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            previewImageUri.value = cameraImageUri.value
-        }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) previewImageUri.value = cameraImageUri.value
     }
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { previewImageUri.value = it }
     }
 
-    val documentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.sendDocumentMessage(channelId, it)
-        }
+    val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { viewModel.sendDocumentMessage(channelId, it) }
     }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                cameraLauncher.launch(createImageUri(context))
-            }
-        }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) cameraLauncher.launch(createImageUri(context))
+    }
 
-    Scaffold { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(channelName, color = Color.White) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigate("home") }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MarPurple)
+
+            )
+        },
+        containerColor = Color.Black
+    ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+
             ChatMessages(
                 messages = messages.value,
-                onSendMessage = { text ->
-                    viewModel.sendMessage(channelId, text)
-                },
+                onSendMessage = { viewModel.sendMessage(channelId, it) },
                 onOpenCamera = {
                     chooseDialog.value = false
-                    if (context.checkSelfPermission(Manifest.permission.CAMERA) ==
-                        PackageManager.PERMISSION_GRANTED
-                    ) {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         cameraLauncher.launch(createImageUri(context))
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
+                    } else permissionLauncher.launch(Manifest.permission.CAMERA)
                 },
                 onImageClicked = { chooseDialog.value = true },
                 onOpenGallery = {
                     chooseDialog.value = false
                     galleryLauncher.launch("image/*")
                 },
-                channelName = String(),
+                channelName = channelName,
                 onAttachDocument = {
                     chooseDialog.value = false
                     documentLauncher.launch(arrayOf("application/pdf", "application/msword"))
@@ -151,13 +138,9 @@ fun ChatScreen(navController: NavController, channelId: String, channelName: Str
                 ContentSelectionDialog(
                     onOpenCamera = {
                         chooseDialog.value = false
-                        if (context.checkSelfPermission(Manifest.permission.CAMERA) ==
-                            PackageManager.PERMISSION_GRANTED
-                        ) {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                             cameraLauncher.launch(createImageUri(context))
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
+                        } else permissionLauncher.launch(Manifest.permission.CAMERA)
                     },
                     onOpenGallery = {
                         chooseDialog.value = false
@@ -171,7 +154,6 @@ fun ChatScreen(navController: NavController, channelId: String, channelName: Str
                 )
             }
 
-            // Image preview before sending
             previewImageUri.value?.let { uri ->
                 ImagePreviewDialog(
                     uri = uri,
@@ -186,8 +168,6 @@ fun ChatScreen(navController: NavController, channelId: String, channelName: Str
     }
 }
 
-
-
 @Composable
 fun ContentSelectionDialog(
     onOpenCamera: () -> Unit,
@@ -201,41 +181,19 @@ fun ContentSelectionDialog(
         title = { Text("Select Content") },
         text = {
             Column {
-                Text(
-                    "Camera",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpenCamera() }
-                        .padding(12.dp)
-                )
-                Text(
-                    "Gallery",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpenGallery() }
-                        .padding(12.dp)
-                )
-                Text(
-                    "Document",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onAttachDocument() }
-                        .padding(12.dp)
-                )
+                Text("Camera", modifier = Modifier.fillMaxWidth().clickable { onOpenCamera() }.padding(12.dp))
+                Text("Gallery", modifier = Modifier.fillMaxWidth().clickable { onOpenGallery() }.padding(12.dp))
+                Text("Document", modifier = Modifier.fillMaxWidth().clickable { onAttachDocument() }.padding(12.dp))
             }
         }
     )
 }
 
-
-
 @Composable
 fun ImagePreviewDialog(uri: Uri, onDismiss: () -> Unit, onSend: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onSend) { Text("Send", color = Color.White) }
-        },
+        confirmButton = { TextButton(onClick = onSend) { Text("Send", color = Color.White) } },
         dismissButton = {
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "Discard", tint = Color.White)
@@ -245,16 +203,11 @@ fun ImagePreviewDialog(uri: Uri, onDismiss: () -> Unit, onSend: () -> Unit) {
             Image(
                 painter = rememberAsyncImagePainter(uri),
                 contentDescription = "Preview",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(8.dp))
             )
         }
     )
 }
-
-
 
 @Composable
 fun ChatMessages(
@@ -264,7 +217,7 @@ fun ChatMessages(
     onOpenCamera: () -> Unit,
     onImageClicked: () -> Unit,
     onOpenGallery: () -> Unit,
-    onAttachDocument: () -> Unit,
+    onAttachDocument: () -> Unit
 ) {
     var msg by remember { mutableStateOf("") }
     val hideKeyboardController = LocalSoftwareKeyboardController.current
@@ -274,18 +227,7 @@ fun ChatMessages(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 72.dp)
         ) {
-            item {
-                ChannelItem(
-                    channelName = channelName,
-                    onClick = TODO(),
-                    modifier = TODO()
-                )
-            }
-
-
-            items(messages) { message ->
-                ChatBubble(message = message)
-            }
+            items(messages) { message -> ChatBubble(message) }
         }
 
         Row(
@@ -299,12 +241,7 @@ fun ChatMessages(
         ) {
             if (msg.isEmpty()) {
                 IconButton(onClick = onImageClicked) {
-                    Icon(
-                        painter = painterResource(R.drawable.attach),
-                        contentDescription = "Attach",
-                        tint = MarPurple,
-                        modifier = Modifier.size(40.dp)
-                    )
+                    Icon(painter = painterResource(R.drawable.attach), contentDescription = "Attach", tint = MarPurple, modifier = Modifier.size(40.dp))
                 }
             }
 
@@ -315,9 +252,7 @@ fun ChatMessages(
                 placeholder = { Text("Type a message...") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { hideKeyboardController?.hide() }
-                ),
+                keyboardActions = KeyboardActions(onDone = { hideKeyboardController?.hide() }),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
@@ -337,12 +272,7 @@ fun ChatMessages(
                     }
                 }
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.send),
-                    contentDescription = "Send",
-                    tint = MarPurple,
-                    modifier = Modifier.size(40.dp)
-                )
+                Icon(painter = painterResource(R.drawable.send), contentDescription = "Send", tint = MarPurple, modifier = Modifier.size(40.dp))
             }
         }
     }
@@ -354,84 +284,21 @@ fun openDocument(context: Context, url: String) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    try {
-        context.startActivity(intent)
-    } catch (e: Exception) {
+    try { context.startActivity(intent) } catch (e: Exception) {
         Toast.makeText(context, "No app found to open document", Toast.LENGTH_SHORT).show()
     }
 }
-
-
-
-
-
-@Composable
-fun ChatImageMessage(message: Message) {
-    var expanded by remember { mutableStateOf(false) }
-    val maxChars = 120 // limit before showing "Read more"
-
-    Column {
-        // Image first
-        Image(
-            painter = rememberAsyncImagePainter(
-                model = message.imageUrl,
-                placeholder = painterResource(R.drawable.ic_image_placeholder),
-                error = painterResource(R.drawable.ic_broken_image)
-            ),
-            contentDescription = "Image Message",
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
-
-        // Then caption text (if available)
-        if (message.message.isNotBlank()) {
-            val shouldTruncate = message.message.length > maxChars
-            val displayText = if (!expanded && shouldTruncate) {
-                message.message.take(maxChars) + "..."
-            } else {
-                message.message
-            }
-
-            Text(
-                text = displayText,
-                color = Color.White,
-                modifier = Modifier
-                    .padding(top = 6.dp)
-                    .clickable(enabled = shouldTruncate) {
-                        expanded = !expanded
-                    }
-            )
-
-            if (shouldTruncate && !expanded) {
-                Text(
-                    text = "Read more",
-                    color = Color.Cyan,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .clickable { expanded = true }
-                )
-            }
-        }
-    }
-}
-
-
-
-
-
 
 @Composable
 fun ChatBubble(message: Message) {
     val isCurrentUser = message.senderId == Firebase.auth.currentUser?.uid
     val bubbleColor = if (isCurrentUser) MarPurple else Purple
     val context = LocalContext.current
-
-    // expand message if its long
     var expanded by remember { mutableStateOf(false) }
     val maxChars = 120
+    val maxBubbleWidth: Dp = with(LocalDensity.current) {
+        (0.75f * LocalContext.current.resources.displayMetrics.widthPixels.toFloat()).toDp()
+    }
 
     Row(
         modifier = Modifier
@@ -440,16 +307,8 @@ fun ChatBubble(message: Message) {
         horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
-        // Show avatar for other users
         if (!isCurrentUser) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Sender Avatar",
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape),
-                tint = Color.White
-            )
+            Icon(Icons.Default.Person, contentDescription = "Avatar", modifier = Modifier.size(28.dp).clip(CircleShape), tint = Color.White)
             Spacer(modifier = Modifier.width(6.dp))
         }
 
@@ -457,92 +316,26 @@ fun ChatBubble(message: Message) {
             modifier = Modifier
                 .background(bubbleColor, RoundedCornerShape(12.dp))
                 .padding(10.dp)
+                .widthIn(max = maxBubbleWidth)
         ) {
             when {
-                // Image message -with optional caption
-                message.imageUrl != null -> {
-                    Column {
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                model = message.imageUrl,
-                                placeholder = painterResource(R.drawable.ic_image_placeholder),
-                                error = painterResource(R.drawable.ic_broken_image)
-                            ),
-                            contentDescription = "Image Message",
-                            modifier = Modifier
-                                .size(200.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        if (message.message.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            val shouldTruncate = message.message.length > maxChars
-                            val displayText = if (!expanded && shouldTruncate) {
-                                message.message.take(maxChars) + "..."
-                            } else {
-                                message.message
-                            }
-
-                            Text(
-                                text = displayText,
-                                color = Color.White,
-                                modifier = Modifier.clickable(enabled = shouldTruncate) {
-                                    expanded = !expanded
-                                }
-                            )
-
-                            if (shouldTruncate && !expanded) {
-                                Text(
-                                    text = "Read more",
-                                    color = Color.Cyan,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier
-                                        .padding(top = 2.dp)
-                                        .clickable { expanded = true }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Document message
-                message.documentUrl != null -> {
-                    Text(
-                        text = "📄 Document",
-                        color = Color.White,
-                        modifier = Modifier.clickable {
-                            openDocument(context, message.documentUrl)
-                        }
-                    )
-                }
-
-                //text message
+                message.imageUrl != null -> ChatImageMessage(message)
+                message.documentUrl != null -> Text(
+                    "📄 Document",
+                    color = Color.White,
+                    modifier = Modifier.clickable { openDocument(context, message.documentUrl) }
+                )
                 else -> {
                     val shouldTruncate = message.message.length > maxChars
-                    val displayText = if (!expanded && shouldTruncate) {
-                        message.message.take(maxChars) + "..."
-                    } else {
-                        message.message
-                    }
+                    val displayText = if (!expanded && shouldTruncate) message.message.take(maxChars) + "..." else message.message
 
-                    Text(
-                        text = displayText,
-                        color = Color.White,
-                        modifier = Modifier.clickable(enabled = shouldTruncate) {
-                            expanded = !expanded
-                        }
-                    )
-
-                    if (shouldTruncate && !expanded) {
-                        Text(
-                            text = "Read more",
+                    Column {
+                        Text(displayText, color = Color.White, modifier = Modifier.clickable(enabled = shouldTruncate) { expanded = !expanded })
+                        if (shouldTruncate && !expanded) Text(
+                            "Read more",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .clickable { expanded = true }
+                            modifier = Modifier.padding(top = 2.dp).clickable { expanded = true }
                         )
                     }
                 }
@@ -551,4 +344,35 @@ fun ChatBubble(message: Message) {
     }
 }
 
+@Composable
+fun ChatImageMessage(message: Message) {
+    var expanded by remember { mutableStateOf(false) }
+    val maxChars = 120
+    val maxBubbleWidth: Dp = with(LocalDensity.current) {
+        (0.75f * LocalContext.current.resources.displayMetrics.widthPixels.toFloat()).toDp()
+    }
 
+    Column(modifier = Modifier.widthIn(max = maxBubbleWidth)) {
+        Image(
+            painter = rememberAsyncImagePainter(
+                message.imageUrl,
+                placeholder = painterResource(R.drawable.ic_image_placeholder),
+                error = painterResource(R.drawable.ic_broken_image)
+            ),
+            contentDescription = "Image Message",
+            modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+        if (message.message.isNotBlank()) {
+            val shouldTruncate = message.message.length > maxChars
+            val displayText = if (!expanded && shouldTruncate) message.message.take(maxChars) + "..." else message.message
+            Text(displayText, color = Color.White, modifier = Modifier.padding(top = 6.dp).clickable(enabled = shouldTruncate) { expanded = !expanded })
+            if (shouldTruncate && !expanded) Text(
+                "Read more",
+                color = Color.Cyan,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 2.dp).clickable { expanded = true }
+            )
+        }
+    }
+}

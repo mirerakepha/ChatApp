@@ -7,9 +7,10 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import android.content.Context
 import android.os.Build
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import java.util.Random
 
 class FirebaseMessageService: FirebaseMessagingService() {
