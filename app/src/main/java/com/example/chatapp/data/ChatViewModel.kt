@@ -142,7 +142,52 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
             }
         )
         subscribeForNotification(channelId)
+        registerUserIdtoChannel(channelId)
     }
+
+
+
+    fun getAllUserEmails(channelID: String, callback: (List<String>) -> Unit) {
+        val ref = db.reference.child("channels").child(channelID).child("users")
+        val userIds = mutableListOf<String>()
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                snapshot.children.forEach {
+                    userIds.add(it.value.toString())
+                }
+                callback.invoke(userIds)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                callback.invoke(emptyList())
+            }
+        })
+    }
+
+
+
+    fun registerUserIdtoChannel(channelId: String){
+        val currentUser = Firebase.auth.currentUser
+        val ref = db.reference.child("channels").child(channelId).child("users")
+        ref.child(currentUser?.uid?: "").addListenerForSingleValueEvent(
+            object : ValueEventListener{
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (!snapshot.exists()){
+                        ref.child(currentUser?.uid?:"").setValue(currentUser?.email)
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+
+                }
+            }
+        )
+
+    }
+
+
+
+
 
     private fun subscribeForNotification(channelId: String){
         FirebaseMessaging.getInstance().subscribeToTopic( "group_$channelId" ).addOnCompleteListener {
@@ -186,7 +231,7 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
             }
             override fun getHeaders(): MutableMap<String, String>{
                 val headers = HashMap<String, String>()
-                headers["Authorization"] = "Bearer YOUR_ACCESS_TOKEN"
+                headers["Authorization"] = "Bearer ${getAccessToken()}"
                 headers["Content-Type"] = "application/json"
                 return headers
             }

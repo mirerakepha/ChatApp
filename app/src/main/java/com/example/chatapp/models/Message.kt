@@ -1,5 +1,7 @@
 package com.example.chatapp.models
 
+import com.google.firebase.Timestamp
+
 data class Message(
     val id: String = "",
     val senderId: String = "",
@@ -8,5 +10,5 @@ data class Message(
     val senderName: String = "",
     val senderImage: String? = null,
     val imageUrl: String? = null,
-    val documentUrl: String? = null
+    val documentUrl: String? = null,
 )

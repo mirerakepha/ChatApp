@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -18,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,13 +27,33 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.chatapp.R
+import com.example.chatapp.BuildConfig
 import com.example.chatapp.data.HomeViewModel
 import com.example.chatapp.ui.theme.MarPurple
-import com.example.chatapp.R
+import com.google.firebase.auth.FirebaseAuth
+
+import com.example.chatapp.MainActivity
+import com.example.chatapp.ui.theme.screens.chat.CallButton
+import com.zegocloud.uikit.prebuilt.call.invite.widget.ZegoSendCallInvitationButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current as MainActivity
+
+    // Initialize Zego once when HomeScreen is entered
+     LaunchedEffect(Unit) {
+        FirebaseAuth.getInstance().currentUser?.let {
+            context.initZegoService(
+                appID = BuildConfig.ZEGO_APP_ID,
+                appSign = BuildConfig.ZEGO_APP_SIGN,
+                userID = it.email!!,
+                userName = it.email!!
+            )
+        }
+    }
+
     val viewModel: HomeViewModel = viewModel()
     val channels = viewModel.channels.collectAsState()
     val showAddChannelDialog = remember { mutableStateOf(false) }
@@ -70,7 +90,7 @@ fun HomeScreen(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Floating Add Button with Blue Glow
+                        // Floating Add Button with Glow
                         Box(
                             modifier = Modifier
                                 .size(72.dp)
@@ -148,7 +168,8 @@ fun HomeScreen(navController: NavController) {
                 items(channels.value) { channel ->
                     ChannelItem(
                         channelName = channel.name,
-                        onClick = { navController.navigate("chat/${channel.id}&${channel.name}") }
+                        onClick = { navController.navigate("chat/${channel.id}&${channel.name}") },
+                        onCall = {}
                     )
                     HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), thickness = 0.5.dp)
                 }
@@ -178,6 +199,8 @@ fun HomeScreen(navController: NavController) {
 fun ChannelItem(
     channelName: String,
     onClick: () -> Unit,
+    shouldShowCallButtons: Boolean = false,
+    onCall: (ZegoSendCallInvitationButton) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -212,6 +235,17 @@ fun ChannelItem(
             ),
             modifier = Modifier.weight(1f)
         )
+
+        // Call buttons float to the end automatically
+        if (shouldShowCallButtons) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CallButton(isVideoCall = true, onCall)
+                CallButton(isVideoCall = false, onCall)
+            }
+        }
     }
 }
 
@@ -298,8 +332,6 @@ fun AddChannelDialog(onAddChannel: (String) -> Unit) {
         }
     }
 }
-
-
 
 @Preview(showBackground = true)
 @Composable

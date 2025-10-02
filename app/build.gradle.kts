@@ -1,3 +1,6 @@
+
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +9,14 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt.android)
 }
+//for secret properties
+val secretsPropertiesFile = rootProject.file("secrets.properties")
+val secretsProperties = Properties()
+if (secretsPropertiesFile.exists()) {
+    secretsProperties.load(secretsPropertiesFile.inputStream())
+}
+
+
 
 
 android {
@@ -14,12 +25,15 @@ android {
 
     defaultConfig {
         applicationId = "com.example.chatapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("long", "ZEGO_APP_ID", secretsProperties["ZEGO_APP_ID"]?.toString() ?: "0")
+        buildConfigField("String", "ZEGO_APP_SIGN", "\"${secretsProperties["ZEGO_APP_SIGN"] ?: ""}\"")
 
 
     }
@@ -42,10 +56,18 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
             excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            //excludes += "META-INF/LICENSE.txt"
+            //excludes += "META-INF/NOTICE"
+            //excludes += "META-INF/NOTICE.txt"
+            //excludes += "mozilla/public-suffix-list.txt"
+            //excludes += "META-INF/DEPENDENCIES"
+
         }
     }
 
@@ -80,7 +102,16 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation(libs.firebase.messaging)
 
-    
+    //Zegocloud
+    implementation("com.github.ZEGOCLOUD:zego_uikit_prebuilt_call_android:+")
+    implementation("com.guolindev.permissionx:permissionx:1.8.0")
+
+    //forced due to unknown conflicting syncs
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.annotation:annotation:1.7.1")
+        }
+    }
 
     // Classic Views
     implementation(libs.appcompat)

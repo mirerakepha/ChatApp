@@ -23,6 +23,10 @@ hiltNavigationCompose = "1.2.0"
 firebaseBom = "33.4.0"
 firebaseMessaging = "25.0.1"
 
+#zegocloud
+annotation = "1.7.1"
+
+
 # Google Auth - KEEP YOUR ORIGINAL
 googleAuth = "21.4.0"
 googleAuthLibraryOauth2Http = "1.19.0"

@@ -20,26 +20,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.chatapp.R
@@ -47,16 +52,15 @@ import com.example.chatapp.data.ChatViewModel
 import com.example.chatapp.models.Message
 import com.example.chatapp.ui.theme.MarPurple
 import com.example.chatapp.ui.theme.Purple
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.zegocloud.uikit.ZegoUIKit
+import com.zegocloud.uikit.prebuilt.call.core.utils.Storage.channelID
+import com.zegocloud.uikit.prebuilt.call.invite.widget.ZegoSendCallInvitationButton
+import com.zegocloud.uikit.service.defines.ZegoUIKitUser
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalDensity
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,17 +106,51 @@ fun ChatScreen(navController: NavController, channelId: String, channelName: Str
                 title = { Text(channelName, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("home") }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    // Video Call Button
+                    CallButton(isVideoCall = true) { callButton ->
+                        viewModel.getAllUserEmails(channelID()) { emails ->
+                            val invitees = mutableListOf<ZegoUIKitUser>()
+                            emails.forEach { email ->
+                                Firebase.auth.currentUser?.email?.let { currentUser ->
+                                    if (email != currentUser) {
+                                        invitees.add(ZegoUIKitUser(email, email))
+                                    }
+                                }
+                            }
+                            callButton.setInvitees(invitees)
+                        }
+                    }
+
+                    // Voice Call Button
+                    CallButton(isVideoCall = false) { callButton ->
+                        viewModel.getAllUserEmails(channelID()) { emails ->
+                            val invitees = mutableListOf<ZegoUIKitUser>()
+                            emails.forEach { email ->
+                                Firebase.auth.currentUser?.email?.let { currentUser ->
+                                    if (email != currentUser) {
+                                        invitees.add(ZegoUIKitUser(email, email))
+                                    }
+                                }
+                            }
+                            callButton.setInvitees(invitees)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MarPurple)
-
             )
+
         },
         containerColor = Color.Black
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-
             ChatMessages(
                 messages = messages.value,
                 onSendMessage = { viewModel.sendMessage(channelId, it) },
@@ -203,7 +241,8 @@ fun ImagePreviewDialog(uri: Uri, onDismiss: () -> Unit, onSend: () -> Unit) {
             Image(
                 painter = rememberAsyncImagePainter(uri),
                 contentDescription = "Preview",
-                modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(8.dp))
+                modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
             )
         }
     )
@@ -227,6 +266,7 @@ fun ChatMessages(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 72.dp)
         ) {
+
             items(messages) { message -> ChatBubble(message) }
         }
 
@@ -241,7 +281,12 @@ fun ChatMessages(
         ) {
             if (msg.isEmpty()) {
                 IconButton(onClick = onImageClicked) {
-                    Icon(painter = painterResource(R.drawable.attach), contentDescription = "Attach", tint = MarPurple, modifier = Modifier.size(40.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.attach),
+                        contentDescription = "Attach",
+                        tint = MarPurple,
+                        modifier = Modifier.size(40.dp)
+                    )
                 }
             }
 
@@ -272,7 +317,12 @@ fun ChatMessages(
                     }
                 }
             ) {
-                Icon(painter = painterResource(R.drawable.send), contentDescription = "Send", tint = MarPurple, modifier = Modifier.size(40.dp))
+                Icon(
+                    painter = painterResource(R.drawable.send),
+                    contentDescription = "Send",
+                    tint = MarPurple,
+                    modifier = Modifier.size(40.dp)
+                )
             }
         }
     }
@@ -297,7 +347,7 @@ fun ChatBubble(message: Message) {
     var expanded by remember { mutableStateOf(false) }
     val maxChars = 120
     val maxBubbleWidth: Dp = with(LocalDensity.current) {
-        (0.75f * LocalContext.current.resources.displayMetrics.widthPixels.toFloat()).toDp()
+        (0.75f * context.resources.displayMetrics.widthPixels.toFloat()).toDp()
     }
 
     Row(
@@ -308,7 +358,14 @@ fun ChatBubble(message: Message) {
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isCurrentUser) {
-            Icon(Icons.Default.Person, contentDescription = "Avatar", modifier = Modifier.size(28.dp).clip(CircleShape), tint = Color.White)
+            Icon(
+                Icons.Default.Person,
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape),
+                tint = Color.White
+            )
             Spacer(modifier = Modifier.width(6.dp))
         }
 
@@ -320,23 +377,35 @@ fun ChatBubble(message: Message) {
         ) {
             when {
                 message.imageUrl != null -> ChatImageMessage(message)
-                message.documentUrl != null -> Text(
-                    "📄 Document",
-                    color = Color.White,
-                    modifier = Modifier.clickable { openDocument(context, message.documentUrl) }
-                )
+                message.documentUrl != null -> {
+                    Text(
+                        "📄 Document",
+                        color = Color.White,
+                        modifier = Modifier.clickable { openDocument(context, message.documentUrl) }
+                    )
+                }
                 else -> {
                     val shouldTruncate = message.message.length > maxChars
-                    val displayText = if (!expanded && shouldTruncate) message.message.take(maxChars) + "..." else message.message
+                    val displayText =
+                        if (!expanded && shouldTruncate) message.message.take(maxChars) + "..."
+                        else message.message
 
                     Column {
-                        Text(displayText, color = Color.White, modifier = Modifier.clickable(enabled = shouldTruncate) { expanded = !expanded })
-                        if (shouldTruncate && !expanded) Text(
-                            "Read more",
-                            color = Color.Cyan,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 2.dp).clickable { expanded = true }
+                        Text(
+                            displayText,
+                            color = Color.White,
+                            modifier = Modifier.clickable(enabled = shouldTruncate) { expanded = !expanded }
                         )
+                        if (shouldTruncate && !expanded) {
+                            Text(
+                                "Read more",
+                                color = Color.Cyan,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .clickable { expanded = true }
+                            )
+                        }
                     }
                 }
             }
@@ -360,13 +429,23 @@ fun ChatImageMessage(message: Message) {
                 error = painterResource(R.drawable.ic_broken_image)
             ),
             contentDescription = "Image Message",
-            modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+            modifier = Modifier
+                .height(200.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop
         )
         if (message.message.isNotBlank()) {
             val shouldTruncate = message.message.length > maxChars
-            val displayText = if (!expanded && shouldTruncate) message.message.take(maxChars) + "..." else message.message
-            Text(displayText, color = Color.White, modifier = Modifier.padding(top = 6.dp).clickable(enabled = shouldTruncate) { expanded = !expanded })
+            val displayText =
+                if (!expanded && shouldTruncate) message.message.take(maxChars) + "..." else message.message
+            Text(
+                displayText,
+                color = Color.White,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clickable(enabled = shouldTruncate) { expanded = !expanded }
+            )
             if (shouldTruncate && !expanded) Text(
                 "Read more",
                 color = Color.Cyan,
@@ -376,3 +455,17 @@ fun ChatImageMessage(message: Message) {
         }
     }
 }
+
+@Composable
+fun CallButton(isVideoCall: Boolean, onClick: (ZegoSendCallInvitationButton) -> Unit){
+    AndroidView(factory = { context ->
+        val button = ZegoSendCallInvitationButton(context)
+        button.setIsVideoCall(isVideoCall)
+        button.resourceID = "zego_data"
+        button
+    }, modifier = Modifier.size(50.dp)){ zegoCallButton ->
+        zegoCallButton.setOnClickListener{_-> onClick(zegoCallButton)}
+
+    }
+}
+
