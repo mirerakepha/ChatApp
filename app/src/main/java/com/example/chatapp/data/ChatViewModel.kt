@@ -23,6 +23,7 @@ import org.json.JSONObject
 import java.lang.reflect.Method
 import com.android.volley.Response
 import com.android.volley.toolbox.Volley
+import com.example.chatapp.SupabaseStorageUtils
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.Firebase
 import com.google.firebase.auth.GoogleAuthCredential
@@ -47,11 +48,15 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
 
 
     //Send a plain text message
-    fun sendMessage(channelId: String, messageText: String) {
+    fun sendMessage(channelId: String,
+                    messageText: String? = null,
+                    imageUrl: String? = null,
+                    documentUrl: String? = null
+    ) {
         val message = Message(
             id = db.reference.push().key ?: UUID.randomUUID().toString(),
             senderId = Firebase.auth.currentUser?.uid ?: "",
-            message = messageText,
+            message = messageText?: "",
             createdAt = System.currentTimeMillis(),
             senderName = Firebase.auth.currentUser?.displayName ?: "",
             imageUrl = null,
@@ -60,7 +65,7 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
         db.getReference("messages").child(channelId).push().setValue(message)
             .addOnCompleteListener {
                 if (it.isSuccessful){
-                    postNotificationToUsers(channelId, message.senderName, messageText)
+                    postNotificationToUsers(channelId, message.senderName, messageText.toString())
                 }
 
 
@@ -72,7 +77,19 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
 
     //Send an image message
     fun sendImageMessage(channelId: String, uri: Uri) {
-        val fileName = "images/${UUID.randomUUID()}.jpg"
+        viewModelScope.launch {
+            val storageUtils = SupabaseStorageUtils(context)
+            val downloadUrl = storageUtils.uploadImage(uri)
+
+            downloadUrl?.let { url ->
+                sendMessage(channelId, null, url)
+            }
+        }
+
+
+        //<===== These are for Firebase =====>
+
+        /*val fileName = "images/${UUID.randomUUID()}.jpg"
         val ref = storage.reference.child(fileName)
 
         viewModelScope.launch {
@@ -91,13 +108,26 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
                         db.getReference("messages").child(channelId).push().setValue(message)
                     }
                 }
-        }
+        }*/
     }
 
 
 
     //Send a document (PDF, Word,)
     fun sendDocumentMessage(channelId: String, uri: Uri) {
+        viewModelScope.launch {
+            val storageUtils = SupabaseStorageUtils(context)
+            val downloadUrl = storageUtils.uploadFile(uri, "documents")
+
+            downloadUrl?.let { url ->
+                sendMessage(channelId, documentUrl = url)
+            }
+        }
+
+
+        //<=====Firebase====>
+        /*
+
         val fileName = "documents/${UUID.randomUUID()}"
         val ref = storage.reference.child(fileName)
 
@@ -118,6 +148,7 @@ class ChatViewModel @Inject constructor(@ApplicationContext val context: Context
                     }
                 }
         }
+        * */
     }
 
 
